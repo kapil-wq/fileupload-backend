@@ -16,7 +16,7 @@ app.get('/fileinfo', async (req, res) => {
   try {
     const filelist = await FileInfo.find({
       ...req.query,
-    });
+    }).sort({ createdAt: 'desc' });
     res.status(200).send(filelist);
   } catch (e) {
     res.status(400).send(e);
