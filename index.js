@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const s3 = require('./aws/aws');
+const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 require('./db/mongoose');
 const FileInfo = require('./models/file');
@@ -53,6 +54,68 @@ app.post('/file', upload.single('multerkey'), function (req, res, next) {
       res.status(400).send(e);
     }
   });
+});
+
+app.get('/getdownloadtoken/:fileid', (req, res) => {
+  var downloadtoken = jwt.sign(
+    { fileid: req.params.fileid },
+    process.env.JWT_DOWNLOAD_SECRET,
+    {
+      expiresIn: 200,
+    }
+  );
+  res.send({ downloadtoken });
+});
+
+app.get('/downloadfile/:token', async (req, res) => {
+  try {
+    var { fileid } = jwt.verify(
+      req.params.token,
+      process.env.JWT_DOWNLOAD_SECRET
+    );
+    var { filename } = await FileInfo.findOne({ uuid: fileid }).select(
+      'filename'
+    );
+  } catch (e) {
+    res.status(400).send(e);
+  }
+
+  const params = {
+    Bucket: process.env.BUCKET_NAME,
+    Key: fileid,
+  };
+  s3.getObject(params, function (err, data) {
+    if (err === null) {
+      res.attachment(filename);
+      res.send(data.Body);
+    } else {
+      res.status(500).send(err);
+    }
+  });
+});
+
+app.delete('/file/:fileid', async (req, res) => {
+  var fileid = req.params.fileid;
+  try {
+    var result = await FileInfo.deleteOne({ uuid: fileid });
+  } catch (err) {
+    res.status(500).send(err);
+  }
+  var params = {
+    Bucket: process.env.BUCKET_NAME,
+    Key: fileid,
+  };
+  if (result.deletedCount === 1) {
+    s3.deleteObject(params, function (err, data) {
+      if (data) {
+        res.status(200).send('Deletion successful');
+      } else {
+        res.status(500).send(err);
+      }
+    });
+  } else {
+    res.status(500).send();
+  }
 });
 
 app.listen(port, () => {
