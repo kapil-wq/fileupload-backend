@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 require('./db/mongoose');
 const FileInfo = require('./models/file');
+const Subject = require('./models/subject');
+const Announcement = require('./models/announcement');
 
 const app = express();
 const port = process.env.PORT;
@@ -115,6 +117,44 @@ app.delete('/file/:fileid', async (req, res) => {
     });
   } else {
     res.status(500).send();
+  }
+});
+
+app.post('/subject', async (req, res) => {
+  const subject = new Subject({ ...req.body });
+  try {
+    await subject.save();
+    res.status(201).send('Data uploaded');
+  } catch (e) {
+    res.status(400).send(e);
+  }
+});
+
+app.get('/subject', async (req, res) => {
+  try {
+    var result = await Subject.find({ ...req.query });
+    res.status(200).send(result);
+  } catch (err) {
+    res.status(500).send(err);
+  }
+});
+
+app.post('/announcement', async (req, res) => {
+  const announcement = new Announcement({ ...req.body });
+  try {
+    await announcement.save();
+    res.status(201).send('Data uploaded');
+  } catch (e) {
+    res.status(400).send(e);
+  }
+});
+
+app.get('/announcement', async (req, res) => {
+  try {
+    var result = await Announcement.find({ ...req.query });
+    res.status(200).send(result);
+  } catch (err) {
+    res.status(500).send(err);
   }
 });
 
